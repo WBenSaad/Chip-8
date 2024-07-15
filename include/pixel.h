@@ -25,7 +25,8 @@ SDL_Window* window;
 SDL_Renderer* renderer;
 SDL_Event event;
 
-PIXEL pixel[l][L];
+uint8_t frame_buffer[l][L]  ;//={0};
+//PIXEL chip8_buffer[l][L];
 
 uint8_t screen[screen_width][screen_length];
 
@@ -71,7 +72,7 @@ const struct
 };
 */
 void init_pixel();
-void DrawPixel(PIXEL pixel);
+void DrawPixel(uint8_t,uint8_t);
 int init_SDL_Obj ();
 void clear_screen();
 void update_screen(); 

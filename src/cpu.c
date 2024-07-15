@@ -1,4 +1,6 @@
 #include "cpu.h"
+#include "stdint.h"
+#include "stdio.h"
 
 void initiliaze_cpu(){
 
@@ -15,13 +17,14 @@ void initiliaze_cpu(){
     {
         cpu.stack[i]=0;
     }
+    cpu.I = 0 ;
     cpu.nested_call=0;
     cpu.sp=0;
     cpu.delay_timer=0;
     cpu.sound_timer=0;
 } 
 
-void decrement(){
+void timer_decrement(){
 
     if (cpu.delay_timer > 0){
         cpu.delay_timer --;
@@ -34,7 +37,7 @@ void decrement(){
 uint16_t getOpcode()
 {
 
-    return (cpu.memory[cpu.pc] << 8 + cpu.memory[cpu.pc+1]);
+    return (cpu.memory[cpu.pc] << 8 | cpu.memory[cpu.pc+1]);
 
 }
 uint8_t getRegisterXnumber(uint16_t Opcode)
@@ -52,7 +55,7 @@ uint8_t getRegisterYnumber(uint16_t Opcode)
 void init_Opcodetable()
 {
 
-  jp.mask[0]= 0x0000; jp.id[0]=0x0FFF;          /* 0NNN */ 
+  jp.mask[0]= 0x0000; jp.id[0]=0xFFFF;          /* 0NNN */ 
   jp.mask[1]= 0xFFFF; jp.id[1]=0x00E0;          /* 00E0 */ 
   jp.mask[2]= 0xFFFF; jp.id[2]=0x00EE;          /* 00EE */ 
   jp.mask[3]= 0xF000; jp.id[3]=0x1000;          /* 1NNN */ 
@@ -94,7 +97,7 @@ uint8_t getOpcodenum(uint16_t Opcode)
 {
     for (int i = 0 ; i < NUMOPCODES ; i++)
     {
-        if (Opcode & jp.mask[i] == jp.id[i])
+        if ((Opcode & jp.mask[i]) == jp.id[i])
         {
             return i ;
         }
@@ -119,22 +122,33 @@ void executeOpcode(uint16_t Opcode)
         {
             cpu.pc=cpu.stack[0];
             cpu.sp--;
+            for (int i = 0 ; i < 15 ; i++) 
+            {
+                cpu.stack[i]=cpu.stack[i+1];
+            }
         }
         break;
     //1nnn - JP addr
     case (3):
-        uint16_t jump_address = 0x0FFF & Opcode ;
+        jump_address = 0x0FFF & Opcode ;
         cpu.pc = jump_address ;
+        cpu.pc -=2 ; 
         break;
     //2nnn - CALL addr
     case (4):
+        for (int i = 15 ; i > 0 ; i--)
+        {
+            cpu.stack[i] = cpu.stack[i-1];
+        }
+        cpu.stack[0]=cpu.pc;
         cpu.sp ++ ;
-        cpu.stack[0]=cpu.pc ;
+        cpu.nested_call ++;
         cpu.pc = 0x0FFF & Opcode ;
+        cpu.pc -=2 ;
         break;
     //3xkk - SE Vx, byte
     case (5):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
+        registerXId = getRegisterXnumber(Opcode) ;
         if (cpu.V[registerXId] == (0x00FF & Opcode))
         {
             cpu.pc += 2 ;
@@ -142,7 +156,7 @@ void executeOpcode(uint16_t Opcode)
         break;
     //4xkk - SNE Vx, byte
     case (6):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
+        registerXId = getRegisterXnumber(Opcode) ;
         if (cpu.V[registerXId] != (0x00FF & Opcode))
         {
             cpu.pc += 2 ;
@@ -150,8 +164,8 @@ void executeOpcode(uint16_t Opcode)
         break;
     //5xy0 - SE Vx, Vy
     case (7):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t registerYId = getRegisterYnumber(Opcode) ;
+        registerXId = getRegisterXnumber(Opcode) ;
+        registerYId = getRegisterYnumber(Opcode) ;
         if (registerXId == registerYId)
         {
             cpu.pc += 2 ;
@@ -159,114 +173,152 @@ void executeOpcode(uint16_t Opcode)
         break;
     //6xkk - LD Vx, byte
     case (8):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
+        registerXId = getRegisterXnumber(Opcode) ;
         cpu.V[registerXId] = (0x00FF & Opcode);
+        //printf("registerXId = %d \n",registerXId);
         break;
     //7xkk - ADD Vx, byte
     case (9):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
+        registerXId = getRegisterXnumber(Opcode) ;
         cpu.V[registerXId] += (0x00FF & Opcode);
         break;
     //8xy0 - LD Vx, Vy
     case (10):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t registerYId = getRegisterYnumber(Opcode) ;
+        registerXId = getRegisterXnumber(Opcode) ;
+        registerYId = getRegisterYnumber(Opcode) ;
         cpu.V[registerXId] = cpu.V[registerYId] ;
         break;
     //8xy1 - OR Vx, Vy
     case (11):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t registerYId = getRegisterYnumber(Opcode) ;
+        registerXId = getRegisterXnumber(Opcode) ;
+        registerYId = getRegisterYnumber(Opcode) ;
         cpu.V[registerXId] |= cpu.V[registerYId] ;
         break;
     //8xy2 - AND Vx, Vy
     case (12):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t registerYId = getRegisterYnumber(Opcode) ;
+        registerXId = getRegisterXnumber(Opcode) ;
+        registerYId = getRegisterYnumber(Opcode) ;
         cpu.V[registerXId] &= cpu.V[registerYId] ;
         break;
     //8xy3 - XOR Vx, Vy
     case (13):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t registerYId = getRegisterYnumber(Opcode) ;
+        registerXId = getRegisterXnumber(Opcode) ;
+        registerYId = getRegisterYnumber(Opcode) ;
         cpu.V[registerXId] ^= cpu.V[registerYId] ;
         break;
     //8xy4 - ADD Vx, Vy
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t registerYId = getRegisterYnumber(Opcode) ;
+    case (14):
+        registerXId = getRegisterXnumber(Opcode) ;
+        registerYId = getRegisterYnumber(Opcode) ;
         if (cpu.V[registerXId] + cpu.V[registerYId] > 255)
         {
-            cpu.V[registerXId] = 0xFFFF ;
             cpu.V[F] = 1 ;
         }
         else 
         {
+            cpu.V[F] = 0 ;
             cpu.V[registerXId] += cpu.V[registerYId] ;
         }
+        cpu.V[registerXId] += cpu.V[registerYId] ;
+        break ;
     //8xy5 - SUB Vx, Vy [TO BE DONE]
-    case (14):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t registerYId = getRegisterYnumber(Opcode) ;
+    case (15):
+    {
+        registerXId = getRegisterXnumber(Opcode) ;
+        registerYId = getRegisterYnumber(Opcode) ;
         int8_t temp = cpu.V[registerXId] - cpu.V[registerYId] ;
         cpu.V[registerXId] =  temp ;
         cpu.V[F] = (temp < 0) ? 0 : 1 ;     
         break;
+    }
     //8xy6 - SHR Vx {, Vy}
-    case (15):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        cpu.V[F] = (cpu.V[registerXId] & (uint16_t) 0x01) ? 1 : 0 ;
-        cpu.V[registerXId] = cpu.V[registerXId] >> 2 ;
+    case (16):
+        registerXId = getRegisterXnumber(Opcode) ;
+        cpu.V[F] = (cpu.V[registerXId] & (uint8_t) 0x01) ? 1 : 0 ;
+        cpu.V[registerXId] = cpu.V[registerXId] >> 1 ;
         break;
     //8xy7 - SUBN Vx, Vy
-    case (16):
+    case (17):
+    {
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
         uint8_t registerYId = getRegisterYnumber(Opcode) ;
         int8_t temp = cpu.V[registerYId] - cpu.V[registerXId] ;
         cpu.V[registerXId] =  temp ;
         cpu.V[F] = (temp < 0) ? 0 : 1 ;   
         break;
+    }
     //8xyE - SHL Vx {, Vy}
-    case (17):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
+    case (18):
+        registerXId = getRegisterXnumber(Opcode) ;
         cpu.V[F] = (cpu.V[registerXId] >> 15 ) ? 1 : 0 ;
-        cpu.V[registerXId] = cpu.V[registerXId] << 2 ;
+        cpu.V[registerXId] = cpu.V[registerXId] << 1 ;
         break;
     //9xy0 - SNE Vx, Vy
-    case (18):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t registerYId = getRegisterYnumber(Opcode) ;
+    case (19):
+        registerXId = getRegisterXnumber(Opcode) ;
+        registerYId = getRegisterYnumber(Opcode) ;
         if (cpu.V[registerXId] != cpu.V[registerYId])
         {
             cpu.pc +=2 ;
         }
         break;
     //Annn - LD I, addr
-    case (19):
-        cpu.V[I] = (Opcode & 0x0FFF) ;
+    case (20):
+        cpu.I = (Opcode & 0x0FFF) ;
         break;
     //Bnnn - JP V0, addr
-    case (20):
+    case (21):
         cpu.pc = (Opcode & 0x0FFF) + cpu.V[0];
         break;
     //Cxkk - RND Vx, byte [TO DO]
-    case (21):
+    case (22):
+    {
         uint8_t rand = 10 ; // This needs to be implemented ;
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
         cpu.V[registerXId] = (Opcode & 0x00FF) & rand ;
         break;
+    }
     //Dxyn - DRW Vx, Vy, nibble  [TO DO]
-    case (22):
+    case (23):
+    {
+        uint8_t x,y,sprite_byte,frame_byte,Xor_output,num_pixels_to_draw;
+        uint8_t* sprite ;
+
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
         uint8_t registerYId = getRegisterYnumber(Opcode) ;
         uint8_t number_bytes = Opcode & 0x000F ;
-        //uint8_t* address = cpu.V[I];
+        uint16_t start_address = cpu.I;
+
+        x = cpu.V[registerXId] % 64;
+        y = cpu.V[registerYId] % 32;
+        sprite = &(cpu.memory[start_address]);
         for (int i=0 ; i <number_bytes ; i++ )
         {
-
+            sprite_byte = sprite[i];
+            num_pixels_to_draw = (64 - x >= 8) ? 8 : 64 - x ;
+            for (int j=0 ; j < num_pixels_to_draw ; j++)
+            {
+                uint8_t frame_pixel_value  = frame_buffer[x+j][y+i] ;
+                /*
+                    1 - Retrieve value of the wanted Pixel
+                    2 - Shift the result to the first digit  
+                */
+                uint8_t sprite_pixel_value = ((sprite_byte & (0x01 << (8-j-1))) >> (8-j-1)) ;
+                Xor_output = frame_pixel_value ^ sprite_pixel_value ;
+                frame_buffer[x+j][y+i] = Xor_output ;
+                if (Xor_output)
+                {
+                    DrawPixel(x+j,y+i);    
+                }
+                // In case 1 Xor 1 we need to set V[F]
+                cpu.V[F] = (Xor_output == 0 & frame_pixel_value == 1 ) ? 1 : 0 ;
+            }
         }
         break;
-    //Ex9E - SKP Vx
-    case (23):
+    }
+    //Ex9E - SKP Vx TO BE IMPLEMENTED
+    case (24):
+        /*
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
         uint8_t key_number  = cpu.V[registerXId];
         if (Keyboard[key_number] == KEY_PRESSED ) // To be implemented
@@ -274,72 +326,100 @@ void executeOpcode(uint16_t Opcode)
             cpu.pc +=2 ;
         }
         break;
+        */
     //ExA1 - SKNP Vx
-    case (24):
+    case (25):
+        /*
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
         uint8_t key_number  = cpu.V[registerXId];
         if (Keyboard[key_number] == KEY_NOT_PRESSED ) // To be implemented
         {
             cpu.pc +=2 ;
         }
+        */
         break;
     //Fx07 - LD Vx, DT
-    case (25):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
+    case (26):
+        registerXId = getRegisterXnumber(Opcode) ;
         cpu.V[registerXId ] = cpu.delay_timer ;
         break;
-    //Fx0A - LD Vx, K
-    case (26):
+    //Fx0A - LD Vx, K TO BE IMPLEMNTED !!!
+    case (27):
+        /* 
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
         while (!Key_event.Keyboard_event) ;
         cpu.V[registerXId] =Keyboard[Key_event.Key_index];
         break;
+        */
     //Fx15 - LD DT, Vx
-    case (27):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
+    case (28):
+        registerXId = getRegisterXnumber(Opcode) ;
         cpu.delay_timer = cpu.V[registerXId] ;
         break;
     //Fx18 - LD ST, Vx
-    case (28):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
+    case (29):
+        registerXId = getRegisterXnumber(Opcode) ;
         cpu.sound_timer = cpu.V[registerXId] ;
         break;
     //Fx1E - ADD I, Vx
-    case (29):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        cpu.V[I] += cpu.V[registerXId] ;
-        break;
-    //Fx29 - LD F, Vx
     case (30):
+        registerXId = getRegisterXnumber(Opcode) ;
+        cpu.I += cpu.V[registerXId] ;
+        break;
+    //Fx29 - LD F, Vx  TO BE IMPLEMENTED
+    case (31):
+        //uint8_t registerXId = getRegisterXnumber(Opcode) ;
         break;
     //Fx33 - LD B, Vx
-    case (31):
-        break;
-    //Fx55 - LD [I], Vx
     case (32):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t address = cpu.V[I];
-        for (int i = 0 ; i < registerXId ; i++  )
+    {
+        registerXId = getRegisterXnumber(Opcode) ;
+        printf("Opcode = %x\n",Opcode);
+        uint8_t temp = cpu.V[registerXId];
+        printf("V[X] = %d\n",temp);
+        uint8_t hundreds = 0, tens = 0, units = 0;
+        uint16_t address = cpu.I;
+        while(temp > 100)
+        {
+            temp -= 100 ;
+            hundreds++ ;
+        }
+        while (temp > 10)
+        {
+            temp -= 10;
+            tens++ ;
+        }
+        units = temp ;
+        cpu.memory[address] = hundreds ;
+        cpu.memory[address + 1] = tens ;
+        cpu.memory[address + 2] = units;
+        break;
+    }
+    //Fx55 - LD [I], Vx
+    case (33):
+    {
+        registerXId = getRegisterXnumber(Opcode) ;
+        uint16_t address = cpu.I;
+        for (int i = 0 ; i <= registerXId ; i++  )
         {
             cpu.memory[address + i] = cpu.V[i] ;
         }
-        cpu.V[I] += (registerXId + 1) ; 
+        cpu.I += (registerXId + 1) ; 
         break;
+    }
     //Fx65 - LD Vx, [I]
-    case (33):
-        uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t address = cpu.V[I];
-        for (int i = 0 ; i < registerXId ; i++  )
+    case (34):
+    {
+        registerXId = getRegisterXnumber(Opcode) ;
+        uint16_t address = cpu.I;
+        for (int i = 0 ; i <= registerXId ; i++  )
         {
             cpu.V[i] = cpu.memory[address + i] ;
         }
-        cpu.V[I] += (registerXId + 1) ; 
         break;
-        break;
-    case (34):
-        break;
+    }
     default:
         break;
     }
-
+    cpu.pc +=2 ;
 }

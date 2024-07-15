@@ -5,9 +5,7 @@ void init_pixel(){
 
     for (int i = 0 ; i <= l ;i++){
         for (int j =0 ; j <= L ; j++){
-            pixel[i][j].position.x *=DIMPIXEL ; 
-            pixel[i][j].position.y *=DIMPIXEL ;
-            pixel[i][j].color = BLACK ;
+            frame_buffer[i][j] = 0 ; 
         }
     }
 
@@ -54,18 +52,14 @@ int init_SDL_Obj()
     }
 } 
 
-void DrawPixel(PIXEL pixel) {
-    SDL_RenderClear(renderer);
+void DrawPixel(uint8_t x , uint8_t y) {
 
-    if (pixel.color == WHITE){
-        SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-    }
-    else if (pixel.color == BLACK){
-        SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
-    }
-        for (uint8_t i = 0 ; i < 8 ; i++){
-            for (uint8_t j = 0 ; j < 8 ;j++){
-               SDL_RenderDrawPoint(renderer,i + (pixel.position.x*DIMPIXEL), j + (pixel.position.y*DIMPIXEL)); 
+    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+    for (uint8_t i = 0 ; i < 8 ; i++)
+    {
+        for (uint8_t j = 0 ; j < 8 ;j++)
+        {
+            SDL_RenderDrawPoint(renderer,i + (x*DIMPIXEL), j + (y*DIMPIXEL)); 
         }
     }
 }

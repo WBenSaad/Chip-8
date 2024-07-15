@@ -13,7 +13,6 @@
 #define D                   13
 #define E                   14
 #define F                   15
-#define I                   16
 /*
 struct Register {
     uint8_t V0  ;
@@ -40,6 +39,7 @@ typedef struct {
     uint8_t  memory[MEMORY_MAX] ;
     uint16_t pc ;
     uint8_t V[16] ;
+    uint16_t I ;
     uint16_t stack[16];
     uint8_t nested_call ;
     uint8_t sp ;
@@ -57,9 +57,12 @@ typedef struct {
 JUMP jp ;
 
 uint8_t key_state ;
+uint16_t jump_address;
+uint8_t registerXId;
+uint8_t registerYId;
 
 void initiliaze_cpu();
-void decrement();
+void timer_decrement();
 uint16_t getOpcode();
 uint8_t getRegisterXnumber(uint16_t);
 uint8_t getRegisterYnumber(uint16_t);
