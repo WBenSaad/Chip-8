@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
     initiliaze_cpu();
     init_Opcodetable();
     init_pixel();
-    load_rom("3-corax+.ch8");
+    load_rom("4-flags.ch8");
     SDL_AddTimer(17, timer_callback, NULL);
     int quit = 0;
     while (!quit) {

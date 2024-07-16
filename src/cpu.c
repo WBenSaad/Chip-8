@@ -210,16 +210,9 @@ void executeOpcode(uint16_t Opcode)
     case (14):
         registerXId = getRegisterXnumber(Opcode) ;
         registerYId = getRegisterYnumber(Opcode) ;
-        if (cpu.V[registerXId] + cpu.V[registerYId] > 255)
-        {
-            cpu.V[F] = 1 ;
-        }
-        else 
-        {
-            cpu.V[F] = 0 ;
-            cpu.V[registerXId] += cpu.V[registerYId] ;
-        }
-        cpu.V[registerXId] += cpu.V[registerYId] ;
+        uint16_t result = cpu.V[registerXId] + cpu.V[registerYId] ;
+        cpu.V[registerXId] = (0x00FF & result) ;
+        cpu.V[F] = (result > 255) ? 1 : 0 ;
         break ;
     //8xy5 - SUB Vx, Vy [TO BE DONE]
     case (15):
@@ -233,10 +226,14 @@ void executeOpcode(uint16_t Opcode)
     }
     //8xy6 - SHR Vx {, Vy}
     case (16):
+    {
         registerXId = getRegisterXnumber(Opcode) ;
-        cpu.V[F] = (cpu.V[registerXId] & (uint8_t) 0x01) ? 1 : 0 ;
-        cpu.V[registerXId] = cpu.V[registerXId] >> 1 ;
+        registerYId = getRegisterYnumber(Opcode) ;
+        uint8_t VF_temp = (cpu.V[registerYId] & (uint8_t) 0x1) ? 1 : 0 ;
+        cpu.V[registerYId] >>=  1 ;
+        cpu.V[F] = VF_temp ;
         break;
+    }
     //8xy7 - SUBN Vx, Vy
     case (17):
     {
@@ -249,10 +246,14 @@ void executeOpcode(uint16_t Opcode)
     }
     //8xyE - SHL Vx {, Vy}
     case (18):
-        registerXId = getRegisterXnumber(Opcode) ;
-        cpu.V[F] = (cpu.V[registerXId] >> 15 ) ? 1 : 0 ;
-        cpu.V[registerXId] = cpu.V[registerXId] << 1 ;
+    {
+        uint8_t registerXId = getRegisterXnumber(Opcode) ;
+        uint8_t registerYId = getRegisterYnumber(Opcode) ;
+        uint8_t VF_temp = (cpu.V[registerYId] >> 7) ? 1 : 0 ;
+        cpu.V[registerXId] = cpu.V[registerYId] << 1 ;
+        cpu.V[F] = VF_temp ;
         break;
+    }
     //9xy0 - SNE Vx, Vy
     case (19):
         registerXId = getRegisterXnumber(Opcode) ;
@@ -291,6 +292,7 @@ void executeOpcode(uint16_t Opcode)
 
         x = cpu.V[registerXId] % 64;
         y = cpu.V[registerYId] % 32;
+        cpu.V[F]= 0 ;
         sprite = &(cpu.memory[start_address]);
         for (int i=0 ; i <number_bytes ; i++ )
         {
@@ -311,7 +313,10 @@ void executeOpcode(uint16_t Opcode)
                     DrawPixel(x+j,y+i);    
                 }
                 // In case 1 Xor 1 we need to set V[F]
-                cpu.V[F] = (Xor_output == 0 & frame_pixel_value == 1 ) ? 1 : 0 ;
+                if (Xor_output == 0 & frame_pixel_value == 1 ) 
+                {
+                    cpu.V[F]= 1 ;
+                }
             }
         }
         break;
@@ -374,9 +379,7 @@ void executeOpcode(uint16_t Opcode)
     case (32):
     {
         registerXId = getRegisterXnumber(Opcode) ;
-        printf("Opcode = %x\n",Opcode);
         uint8_t temp = cpu.V[registerXId];
-        printf("V[X] = %d\n",temp);
         uint8_t hundreds = 0, tens = 0, units = 0;
         uint16_t address = cpu.I;
         while(temp > 100)
