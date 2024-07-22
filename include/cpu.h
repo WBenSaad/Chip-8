@@ -2,38 +2,21 @@
 #define CPU_H
 #include <stdint.h>
 #include <pixel.h>
+#include <keyboard.h>
+#include <main.h>
 
 
-#define MEMORY_MAX          4096
-#define START_ADDRESS       0x200
-#define NUMOPCODES          35
-#define A                   10
-#define B                   11
-#define C                   12
-#define D                   13
-#define E                   14
-#define F                   15
-/*
-struct Register {
-    uint8_t V0  ;
-    uint8_t V1  ;
-    uint8_t V2  ;  
-    uint8_t V3  ;
-    uint8_t V4  ;
-    uint8_t V5  ;
-    uint8_t V6  ;
-    uint8_t V7  ;
-    uint8_t V8  ;
-    uint8_t V9  ;
-    uint8_t VA  ;
-    uint8_t VB  ;
-    uint8_t VC  ;
-    uint8_t VD  ;
-    uint8_t VE  ;
-    uint8_t VF  ;
-    uint16_t I  ;
-};
-*/
+#define MEMORY_MAX                  4096
+#define START_ADDRESS               0x200
+#define NUMOPCODES                  35
+#define DEFAULT_SPRITE_ADDRESS      0x50
+#define A                           10
+#define B                           11
+#define C                           12
+#define D                           13
+#define E                           14
+#define F                           15
+
 typedef struct {
 
     uint8_t  memory[MEMORY_MAX] ;
@@ -68,6 +51,6 @@ uint8_t getRegisterXnumber(uint16_t);
 uint8_t getRegisterYnumber(uint16_t);
 void init_Opcodetable();
 uint8_t getOpcodenum(uint16_t);
-void executeOpcode(uint16_t);
+uint8_t executeOpcode(uint16_t);
 //uint8_t Keyboard_Pressed();
 #endif // CPU_H

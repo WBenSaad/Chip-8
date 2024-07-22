@@ -1,48 +1,40 @@
 #include "pixel.h"
+SDL_Texture* BlackTexture ;
+SDL_Texture* WhiteTexture ;
 
+void init_framebuffer()
+{
 
-void init_pixel(){
-
-    for (int i = 0 ; i <= l ;i++){
-        for (int j =0 ; j <= L ; j++){
-            frame_buffer[i][j] = 0 ; 
+    for (int i = 0 ; i < l ;i++)
+    {
+        for (int j =0 ; j < L ; j++)
+        {
+            frame_buffer[i][j] = 0 ;  
         }
     }
-
 }
-
-int init_SDL_Obj() 
+int init_video() 
 { 
-    carre[0]=NULL; 
-    carre[1]=NULL; 
-    //Window initilization
+    // Initialize SDL
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+        return 1;
+    }
+
+    // Window initialization
     window = SDL_CreateWindow("SDL2 64x32 Window",
-                               SDL_WINDOWPOS_UNDEFINED,
-                               SDL_WINDOWPOS_UNDEFINED,
-                               screen_width, screen_length,
-                               SDL_WINDOW_SHOWN);
-    SDL_SetWindowTitle(window,"Chip8"); 
+                              SDL_WINDOWPOS_UNDEFINED,
+                              SDL_WINDOWPOS_UNDEFINED,
+                              screen_width, screen_length,
+                              SDL_WINDOW_SHOWN);
+    if (window == NULL) {
+        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+    SDL_SetWindowTitle(window, "Chip8");
 
-    if(window==NULL) 
-    { 
-        return 1 ;
-    } 
-    //Surface initilization
-    carre[0]=SDL_CreateRGBSurface(0,DIMPIXEL,DIMPIXEL,32,0,0,0,0); 
-    if(carre[0]==NULL) 
-    { 
-        return 1 ;
-    } 
-    SDL_FillRect(carre[0],NULL,SDL_MapRGB(carre[0]->format,0x00,0x00,0x00)); 
-
-    carre[1]=SDL_CreateRGBSurface(0,DIMPIXEL,DIMPIXEL,32,0,0,0,0);
-    if(carre[1]==NULL) 
-    { 
-       return 1; 
-    } 
-
-    SDL_FillRect(carre[1],NULL,SDL_MapRGB(carre[1]->format,0xFF,0xFF,0xFF));  //le pixel blanc 
-    //Renderer initilization
+    // Renderer initialization
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == NULL) {
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -50,28 +42,59 @@ int init_SDL_Obj()
         SDL_Quit();
         return 1;
     }
+
+    // Surface initialization
+    SDL_Surface* whiteSurface = SDL_CreateRGBSurface(0, 8, 8, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    SDL_Surface* blackSurface = SDL_CreateRGBSurface(0, 8, 8, 32, 0x00, 0x00, 0x00, 0x00);
+    if (whiteSurface == NULL || blackSurface == NULL)
+    {
+        printf("Surfaces couldn't be created !SDL_Error: %s\n", SDL_GetError());
+        SDL_Quit();
+    } 
+    SDL_FillRect(whiteSurface, NULL, SDL_MapRGB(whiteSurface->format, 0xFF, 0xFF, 0xFF));  // White pixel
+    SDL_FillRect(blackSurface, NULL, SDL_MapRGB(blackSurface->format, 0x00, 0x00, 0x00));  // Black pixel
+
+    WhiteTexture = SDL_CreateTextureFromSurface(renderer, whiteSurface);
+    BlackTexture = SDL_CreateTextureFromSurface(renderer, blackSurface);
+    if (WhiteTexture == NULL || BlackTexture == NULL)
+    {
+        printf("Textures couldn't be created !SDL_Error: %s\n", SDL_GetError());
+        SDL_Quit();
+    } 
+    SDL_FreeSurface(whiteSurface);
+    SDL_FreeSurface(blackSurface);
 } 
 
-void DrawPixel(uint8_t x , uint8_t y) {
-
-    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-    for (uint8_t i = 0 ; i < 8 ; i++)
+void DrawPixel(uint8_t x , uint8_t y, uint8_t color) {
+    
+    SDL_Rect pixel;
+    pixel.x = x*8;
+    pixel.y = y*8;
+    pixel.w = 8;
+    pixel.h = 8;
+    if (color == WHITE){
+    SDL_RenderCopy(renderer,WhiteTexture,NULL,&pixel);
+    }
+    else if (color == BLACK)
     {
-        for (uint8_t j = 0 ; j < 8 ;j++)
-        {
-            SDL_RenderDrawPoint(renderer,i + (x*DIMPIXEL), j + (y*DIMPIXEL)); 
-        }
+    SDL_RenderCopy(renderer,BlackTexture,NULL,&pixel);
     }
 }
 
 void clear_screen()
 {
-
-    SDL_RenderClear(renderer);
-    SDL_RenderPresent(renderer);
+    init_framebuffer();
 }
 
 void update_screen()
 {
-     SDL_RenderPresent(renderer);
+
+     for (int i =0 ; i < l ;i++)
+     {
+        for (int j=0 ; j < L ; j++)
+        {
+            DrawPixel(i,j,frame_buffer[i][j]);
+        }
+     }
+     SDL_RenderPresent(renderer); 
 }
