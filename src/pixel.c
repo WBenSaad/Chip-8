@@ -2,9 +2,8 @@
 SDL_Texture* BlackTexture ;
 SDL_Texture* WhiteTexture ;
 
-void init_framebuffer()
+void framebuffer_init()
 {
-
     for (int i = 0 ; i < l ;i++)
     {
         for (int j =0 ; j < L ; j++)
@@ -13,7 +12,7 @@ void init_framebuffer()
         }
     }
 }
-int init_video() 
+int video_init() 
 { 
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -22,7 +21,7 @@ int init_video()
     }
 
     // Window initialization
-    window = SDL_CreateWindow("SDL2 64x32 Window",
+    window = SDL_CreateWindow("Chip8",
                               SDL_WINDOWPOS_UNDEFINED,
                               SDL_WINDOWPOS_UNDEFINED,
                               screen_width, screen_length,
@@ -32,7 +31,6 @@ int init_video()
         SDL_Quit();
         return 1;
     }
-    SDL_SetWindowTitle(window, "Chip8");
 
     // Renderer initialization
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
@@ -83,7 +81,7 @@ void DrawPixel(uint8_t x , uint8_t y, uint8_t color) {
 
 void clear_screen()
 {
-    init_framebuffer();
+    framebuffer_init();
 }
 
 void update_screen()

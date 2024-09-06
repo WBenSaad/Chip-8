@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <SDL.h>
-#include <main.h>
+
 
 #define l 64 
 #define L 32 
@@ -29,8 +29,6 @@ SDL_Renderer* renderer;
 SDL_Event event;
 
 uint8_t frame_buffer[l][L]  ;
-//uint8_t buffer[l][L] ;
-//PIXEL chip8_buffer[l][L];
 
 uint8_t screen[screen_width][screen_length];
 
@@ -52,9 +50,9 @@ static const uint8_t default_sprites[90]    = {0xF0,0x90,0x90,0x90,0xF0,
                                                0xF0,0x80,0xF0,0x80,0xF0,
                                                0xF0,0x80,0xF0,0x80,0x80};               
 
-void init_framebuffer();
+void framebuffer_init();
 void DrawPixel(uint8_t,uint8_t,uint8_t);
-int init_video ();
+int  video_init ();
 void clear_screen();
 void update_screen(); 
 

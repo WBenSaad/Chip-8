@@ -3,8 +3,6 @@
 #include <stdint.h>
 #include <pixel.h>
 #include <keyboard.h>
-#include <main.h>
-
 
 #define MEMORY_MAX                  4096
 #define START_ADDRESS               0x200
@@ -24,7 +22,6 @@ typedef struct {
     uint8_t V[16] ;
     uint16_t I ;
     uint16_t stack[16];
-    uint8_t nested_call ;
     uint8_t sp ;
     uint8_t delay_timer;
     uint8_t sound_timer;
@@ -39,18 +36,18 @@ typedef struct {
 
 JUMP jp ;
 
-uint8_t key_state ;
+uint8_t  key_state ;
 uint16_t jump_address;
-uint8_t registerXId;
-uint8_t registerYId;
+uint8_t  registerXId;
+uint8_t  registerYId;
 
-void initiliaze_cpu();
-void timer_decrement();
+void     cpu_init();
+void     timer_decrement();
 uint16_t getOpcode();
-uint8_t getRegisterXnumber(uint16_t);
-uint8_t getRegisterYnumber(uint16_t);
-void init_Opcodetable();
-uint8_t getOpcodenum(uint16_t);
-uint8_t executeOpcode(uint16_t);
-//uint8_t Keyboard_Pressed();
+uint8_t  getRegisterXnumber(uint16_t);
+uint8_t  getRegisterYnumber(uint16_t);
+void     Opcodetable_init();
+uint8_t  getOpcodenum(uint16_t);
+uint8_t  executeOpcode(uint16_t);
+
 #endif // CPU_H

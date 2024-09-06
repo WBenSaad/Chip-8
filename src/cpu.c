@@ -3,7 +3,7 @@
 #include "stdio.h"
 
 
-void initiliaze_cpu(){
+void cpu_init(){
 
     for (int i=START_ADDRESS ; i < MEMORY_MAX ;i++)
     {
@@ -23,10 +23,10 @@ void initiliaze_cpu(){
         cpu.stack[i]=0;
     }
     cpu.I = 0 ;
-    cpu.nested_call=0;
-    cpu.sp=0;
+    cpu.sp = 0;
     cpu.delay_timer=0;
     cpu.sound_timer=0;
+    Opcodetable_init();
 } 
 
 void timer_decrement(){
@@ -57,7 +57,7 @@ uint8_t getRegisterYnumber(uint16_t Opcode)
     return ((Opcode & 0x00F0) >> 4) ;
 
 }
-void init_Opcodetable()
+void Opcodetable_init()
 {
 
   jp.mask[0]= 0x0000; jp.id[0]=0xFFFF;          /* 0NNN */ 
@@ -111,6 +111,7 @@ uint8_t getOpcodenum(uint16_t Opcode)
 }
 uint8_t executeOpcode(uint16_t Opcode)
 {
+
     uint8_t action = getOpcodenum(Opcode);
     switch (action)
     {
@@ -123,11 +124,10 @@ uint8_t executeOpcode(uint16_t Opcode)
         break;
     //00EE - RET
     case (2):
-        if (cpu.nested_call > 0) 
+        if (cpu.sp > 0) 
         {
             cpu.pc=cpu.stack[0];
             cpu.sp--;
-            cpu.nested_call-- ;
             for (int i = 0 ; i < 15 ; i++) 
             {
                 cpu.stack[i]=cpu.stack[i+1];
@@ -148,7 +148,6 @@ uint8_t executeOpcode(uint16_t Opcode)
         }
         cpu.stack[0]=cpu.pc;
         cpu.sp ++ ;
-        cpu.nested_call ++;
         cpu.pc = 0x0FFF & Opcode ;
         cpu.pc -=2 ;
         break;
@@ -338,7 +337,7 @@ uint8_t executeOpcode(uint16_t Opcode)
     case (24):
     {
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t key_index  = cpu.V[registerXId];
+        uint8_t key_index  = cpu.V[registerXId] % 16;
         if (Keyboard[key_index].Key_current_state == KEY_PRESSED )
         {
             cpu.pc +=2 ;
@@ -350,7 +349,7 @@ uint8_t executeOpcode(uint16_t Opcode)
     {
 
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        uint8_t key_index  = cpu.V[registerXId];
+        uint8_t key_index = cpu.V[registerXId] % 16;
         if ((Keyboard[key_index].Key_current_state == KEY_NOT_PRESSED)) 
         {
             cpu.pc +=2 ;
@@ -397,14 +396,15 @@ uint8_t executeOpcode(uint16_t Opcode)
     case (30):
     {
         registerXId = getRegisterXnumber(Opcode) ;
-        cpu.I += cpu.V[registerXId] ;
+        cpu.I +=cpu.V[registerXId] ;
+        cpu.I &= 0x0FFF;  
         break;
     }
     //Fx29 - LD F, Vx  TO BE IMPLEMENTED
     case (31):
     {
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        cpu.I = DEFAULT_SPRITE_ADDRESS + (5*cpu.V[registerXId]);
+        cpu.I = DEFAULT_SPRITE_ADDRESS + (5*(cpu.V[registerXId] & 0x0F));
         break;
     }
     //Fx33 - LD B, Vx
@@ -425,9 +425,9 @@ uint8_t executeOpcode(uint16_t Opcode)
             tens++ ;
         }
         units = temp ;
-        cpu.memory[address] = hundreds ;
-        cpu.memory[address + 1] = tens ;
-        cpu.memory[address + 2] = units;
+        cpu.memory[ address      & 0x0FFF] = hundreds ;
+        cpu.memory[(address + 1) & 0x0FFF] = tens ;
+        cpu.memory[(address + 2) & 0x0FFF] = units;
         break;
     }
     //Fx55 - LD [I], Vx
@@ -437,9 +437,9 @@ uint8_t executeOpcode(uint16_t Opcode)
         uint16_t address = cpu.I;
         for (int i = 0 ; i <= registerXId ; i++  )
         {
-            cpu.memory[address + i] = cpu.V[i] ;
+            cpu.memory[(address + i) & 0x0FFF] = cpu.V[i] ;
         }
-        cpu.I += (registerXId + 1) ; 
+        //cpu.I += (registerXId + 1) ; 
         break;
     }
     //Fx65 - LD Vx, [I]
@@ -449,14 +449,11 @@ uint8_t executeOpcode(uint16_t Opcode)
         uint16_t address = cpu.I;
         for (int i = 0 ; i <= registerXId ; i++  )
         {
-            cpu.V[i] = cpu.memory[address + i] ;
+            cpu.V[i] = cpu.memory[(address + i) & 0x0FFF] ;
         }
         break;
     }
     default:
-        //printf("address==%x\n",cpu.pc);
-        //printf("opcode==%x\n",Opcode);
-        //fflush(stdout);
         return 0 ;
         break;
     }
