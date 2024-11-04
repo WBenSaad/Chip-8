@@ -1,5 +1,5 @@
 #include "Timer.h"
-#include "main.h"
+
 
 uint32_t timer_callback (uint32_t interval , void* param)
 {
@@ -14,7 +14,7 @@ int timer_init()
 {
     if (SDL_Init(SDL_INIT_TIMER)< 0) 
     {
-        fprintf(stderr, "SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
         return 1;
     }
 }

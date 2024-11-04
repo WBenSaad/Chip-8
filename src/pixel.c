@@ -1,19 +1,32 @@
 #include "pixel.h"
-SDL_Texture* BlackTexture ;
-SDL_Texture* WhiteTexture ;
 
-void framebuffer_init()
+void plane_clear(int plane)
 {
     for (int i = 0 ; i < l ;i++)
     {
         for (int j =0 ; j < L ; j++)
         {
-            frame_buffer[i][j] = 0 ;  
+            frame_buffer[plane][i][j] = 0 ;  
         }
     }
 }
+
+void framebuffer_init()
+{
+    for (int i = 0 ; i < 4 ; i++)
+    {
+        plane_clear(i);
+    }
+}
+
 int video_init() 
 { 
+    /*By Default frame buffer should be 64x32 */
+    Resolution = LORES ;
+    planes[0] = 1 ;
+    planes[1] = 0 ;
+    planes[2] = 0 ;
+    planes[3] = 0 ;
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -40,7 +53,6 @@ int video_init()
         SDL_Quit();
         return 1;
     }
-
     // Surface initialization
     SDL_Surface* whiteSurface = SDL_CreateRGBSurface(0, 8, 8, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
     SDL_Surface* blackSurface = SDL_CreateRGBSurface(0, 8, 8, 32, 0x00, 0x00, 0x00, 0x00);
@@ -61,8 +73,8 @@ int video_init()
     } 
     SDL_FreeSurface(whiteSurface);
     SDL_FreeSurface(blackSurface);
-} 
-
+    
+}
 void DrawPixel(uint8_t x , uint8_t y, uint8_t color) {
     
     SDL_Rect pixel;
@@ -91,7 +103,7 @@ void update_screen()
      {
         for (int j=0 ; j < L ; j++)
         {
-            DrawPixel(i,j,frame_buffer[i][j]);
+            DrawPixel(i,j,frame_buffer[0][i][j]);
         }
      }
      SDL_RenderPresent(renderer); 

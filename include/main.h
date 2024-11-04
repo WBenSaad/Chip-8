@@ -9,9 +9,8 @@
 #include <Timer.h>
 #include <cpu.h>
 #include <string.h>
+#include <assert.h>
 
-
-static char* rom_name = "Pong (1 player).ch8";
 SDL_Event event ; 
 int quit;
 

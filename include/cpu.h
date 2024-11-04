@@ -3,10 +3,12 @@
 #include <stdint.h>
 #include <pixel.h>
 #include <keyboard.h>
+#include <main.h>
+
 
 #define MEMORY_MAX                  4096
 #define START_ADDRESS               0x200
-#define NUMOPCODES                  35
+#define NUMOPCODES                  53
 #define DEFAULT_SPRITE_ADDRESS      0x50
 #define A                           10
 #define B                           11
@@ -25,6 +27,9 @@ typedef struct {
     uint8_t sp ;
     uint8_t delay_timer;
     uint8_t sound_timer;
+    #if defined(XOCHIP) || defined(SCHIP)
+    uint8_t RPL[16];
+    #endif
 }CPU;
 
 CPU cpu ;
@@ -40,6 +45,7 @@ uint8_t  key_state ;
 uint16_t jump_address;
 uint8_t  registerXId;
 uint8_t  registerYId;
+int      unsupported_opcode ;
 
 void     cpu_init();
 void     timer_decrement();
