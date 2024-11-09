@@ -5,13 +5,13 @@
 #include <SDL.h>
 
 
-#define l 128 
-#define L 64 
+#define FRAME_WIDTH  128 
+#define FRAME_HEIGHT 64 
 
 #define DIMPIXEL 8 
 
-#define screen_width   l*DIMPIXEL
-#define screen_length  L*DIMPIXEL 
+#define screen_width   FRAME_WIDTH*DIMPIXEL
+#define screen_length  FRAME_HEIGHT*DIMPIXEL 
 
 #define NUM_PLANES  4
 
@@ -41,7 +41,7 @@ SDL_Surface* blackSurface ;
 => The Frame Buffer will be composed of 4 buffers of size l*L  
 For SCHIP and CHIP8 only Plane 0 will be used */
 
-uint8_t frame_buffer[NUM_PLANES][l][L]  ;
+uint8_t frame_buffer[NUM_PLANES][FRAME_WIDTH][FRAME_HEIGHT]  ;
 
 uint8_t planes[NUM_PLANES];
 uint8_t active_planes ;
@@ -68,7 +68,7 @@ static const uint8_t default_sprites[] = {
     0xF0, 0x80, 0xF0, 0x80, 0xF0,
     0xF0, 0x80, 0xF0, 0x80, 0x80
 };
-#if defined(SCHIP)
+#if (defined(SCHIP) || defined (XOCHIP))
 static const uint8_t BigFont[] = {
     0xFF, 0xFF, 0xC3, 0xC3, 0xC3, 0xC3, 0xC3, 0xC3, 0xFF, 0xFF, // 0
     0x18, 0x78, 0x78, 0x18, 0x18, 0x18, 0x18, 0x18, 0xFF, 0xFF, // 1

@@ -22,7 +22,7 @@ void poll_inputs()
 uint8_t load_rom(char* rom_name){
 
     FILE *rom = NULL ;
-    rom = fopen(rom_name,"rb");
+    rom = fopen("8-scrolling.ch8","rb");
     if (rom != NULL)
     {
         fread(&cpu.memory[START_ADDRESS],sizeof(uint8_t)*(MEMORY_MAX - START_ADDRESS),1,rom);
@@ -41,8 +41,11 @@ void Quit()
     SDL_RemoveTimer(timer_id);
     SDL_FreeSurface(carre[0]);
     SDL_FreeSurface(carre[1]);
+    SDL_CloseAudioDevice(dev);
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+    exit(0);
 }
 
 void execute_rom()
@@ -92,5 +95,5 @@ int main(int argc, char* argv[]) {
         (cpu.sound_timer > 0) ? audio_play() : audio_pause() ;
     }
     Quit();
-    return 0;
+    //return 0 ;
 }

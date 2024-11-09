@@ -2,9 +2,9 @@
 
 void plane_clear(int plane)
 {
-    for (int i = 0 ; i < l ;i++)
+    for (int i = 0 ; i < FRAME_WIDTH ;i++)
     {
-        for (int j =0 ; j < L ; j++)
+        for (int j =0 ; j < FRAME_HEIGHT ; j++)
         {
             frame_buffer[plane][i][j] = 0 ;  
         }
@@ -99,9 +99,9 @@ void clear_screen()
 void update_screen()
 {
 
-     for (int i =0 ; i < l ;i++)
+     for (int i =0 ; i < FRAME_WIDTH ;i++)
      {
-        for (int j=0 ; j < L ; j++)
+        for (int j=0 ; j < FRAME_HEIGHT ; j++)
         {
             DrawPixel(i,j,frame_buffer[0][i][j]);
         }

@@ -230,21 +230,30 @@ uint8_t executeOpcode(uint16_t Opcode)
         registerXId = getRegisterXnumber(Opcode) ;
         registerYId = getRegisterYnumber(Opcode) ;
         cpu.V[registerXId] |= cpu.V[registerYId] ;
+        /* COSMAC based variants will reset VF */
+        #if defined(CHIP8)
         cpu.V[F] = 0 ;
+        #endif
         break;
     //8xy2 - AND Vx, Vy
     case (12):
         registerXId = getRegisterXnumber(Opcode) ;
         registerYId = getRegisterYnumber(Opcode) ;
         cpu.V[registerXId] &= cpu.V[registerYId] ;
+        /* COSMAC based variants will reset VF */
+        #if defined(CHIP8)
         cpu.V[F] = 0 ;
+        #endif
         break;
     //8xy3 - XOR Vx, Vy
     case (13):
         registerXId = getRegisterXnumber(Opcode) ;
         registerYId = getRegisterYnumber(Opcode) ;
         cpu.V[registerXId] ^= cpu.V[registerYId] ;
+        /* COSMAC based variants will reset VF */
+        #if defined(CHIP8)
         cpu.V[F] = 0 ;
+        #endif
         break;
     //8xy4 - ADD Vx, Vy
     case (14):
@@ -458,7 +467,9 @@ uint8_t executeOpcode(uint16_t Opcode)
         {
             cpu.memory[(address + i) & 0x0FFF] = cpu.V[i] ;
         }
-        //cpu.I += (registerXId + 1) ; 
+        #if !defined(SCHIP)
+        cpu.I += (registerXId + 1) ;
+        #endif 
         break;
     }
     //Fx65 - LD Vx, [I]
@@ -470,6 +481,9 @@ uint8_t executeOpcode(uint16_t Opcode)
         {
             cpu.V[i] = cpu.memory[(address + i) & 0x0FFF] ;
         }
+        #if !defined(SCHIP)
+        cpu.I += (registerXId + 1) ;
+        #endif 
         break;
     }
     //00CN   Scroll display N lines down
@@ -477,43 +491,44 @@ uint8_t executeOpcode(uint16_t Opcode)
     case (35):
     {
         uint8_t pixels_to_scroll = Opcode & (0xF) ;
-        #if defined (SCHIP)
+        #if defined (XOCHIP)
         if (Resolution == LORES)
         {
-            pixels_to_scroll >>= 1 ;
+           pixels_to_scroll *= 2 ;
         } 
         #endif
-        for (int i = 0 ; i < NUM_PLANES ; i++)
+        for (int current_plane = 0 ; current_plane < NUM_PLANES ; current_plane++)
         {
-            if (planes[i] == 1)
+            if (planes[current_plane] == 1)
             {   
-                for (int j = 0 ; j < l ; j++ )
+                for (int x = 0 ; x < FRAME_WIDTH ; x++)
                 {
-                    for (int k=L ; k >= pixels_to_scroll ; k--)
+                    for (int y = FRAME_HEIGHT-1 ; y >= 0 ; y--)
                     {
-                        frame_buffer[i][j][k] = frame_buffer[i][j][k-pixels_to_scroll];
-                        frame_buffer[i][j][k-pixels_to_scroll] = 0 ;
+                        frame_buffer[current_plane][x][y] = (y >= pixels_to_scroll) ? frame_buffer[current_plane][x][y-pixels_to_scroll] : 0 ;
                     }
                 }
             }
         }
+        break ;
     }
+    
     #endif
     //00Dn   Scroll screen content up N hires pixel
     #if defined(XOCHIP)
     case (36):
     {
-        uint8_t pixels_to_scroll = Opcode & (0xF) ;
+        uint8_t pixels_to_scroll = (Opcode & (0x000F)) << Resolution ;
         for (int i = 0 ; i < NUM_PLANES ; i++)
         {
             if (planes[i] == 1)
             {
-                for (int j = 0 ; j < l ; j++ )
+                for (int j = 0 ; j < FRAME_WIDTH ; j++ )
                 {
-                    for (int k=pixels_to_scroll ; k < L ; k++)
+                    for (int k=0 ; k <= FRAME_HEIGHT ; k++)
                     {
-                        frame_buffer[i][j][k - pixels_to_scroll] = frame_buffer[i][j][k];
-                        frame_buffer[i][j][k] = 0 ;
+
+                        frame_buffer[i][j][k] = ( k <= FRAME_HEIGHT- pixels_to_scroll) ? frame_buffer[i][j][k + pixels_to_scroll] : 0 ;
                     }
                 }
             }
@@ -521,27 +536,28 @@ uint8_t executeOpcode(uint16_t Opcode)
         break;
     }
     #endif
-    //00FB    Scroll display 4 pixels right  // XO-CHIP to be implemented
+    //00FB    Scroll display 4 pixels right  
     #if (defined(XOCHIP) || defined(SCHIP))
     case (37):
     {
         uint8_t pixels_to_scroll = 4 ;
-        #if defined(SCHIP)
+        #if defined(XOCHIP)
         if (Resolution == LORES)
         {
-            pixels_to_scroll = 2 ;
-        }
+           pixels_to_scroll <<= 1 ;
+        } 
         #endif 
         for (int i=0 ; i <NUM_PLANES ; i++)
         {
             if ( planes[i] == 1)
             {
-                for (int k = 0 ; k < L ; k++)
+                for (int k = 0 ; k < FRAME_HEIGHT ; k++)
                 {
-                    for (int j = l ; j <= pixels_to_scroll ; j--)
+                    for (int j = FRAME_WIDTH - 1 ; j >= 0 ; j--)
                     {
-                        frame_buffer[i][j][k] = frame_buffer[i][j-pixels_to_scroll][k];
-                        frame_buffer[i][j-pixels_to_scroll][k] = 0;
+
+                        frame_buffer[i][j][k] = (j >= pixels_to_scroll) ? frame_buffer[i][j-pixels_to_scroll][k] : 0;
+
                     }
                 }
             }
@@ -554,22 +570,23 @@ uint8_t executeOpcode(uint16_t Opcode)
     case (38):
     {
         uint8_t pixels_to_scroll = 4 ;
-        #if defined(SCHIP)
+        #if defined(XOCHIP)
         if (Resolution == LORES)
         {
-            pixels_to_scroll = 2 ;
-        }
+           pixels_to_scroll <<= 1 ;
+        } 
         #endif 
         for (int i=0 ; i <NUM_PLANES ; i++)
         {
             if ( planes[i] == 1)
             {
-                for (int k = 0 ; k < L ; k++)
+                for (int k = 0 ; k < FRAME_HEIGHT ; k++)
                 {
-                    for (int j = 0 ; j <= l - pixels_to_scroll ; j++)
+                    for (int j = 0 ; j <= FRAME_WIDTH; j++)
                     {
-                        frame_buffer[i][j][k] = frame_buffer[i][j+pixels_to_scroll][k];
-                        frame_buffer[i][j][k] = 0;
+
+                        frame_buffer[i][j][k] = (j <= FRAME_WIDTH - pixels_to_scroll ) ? frame_buffer[i][j+pixels_to_scroll][k] : 0 ;
+
                     }
                 }
             }
@@ -656,30 +673,75 @@ uint8_t executeOpcode(uint16_t Opcode)
         break;
     }
     #endif
-    /*
+    
     //DXY0	sprite vX vY 0 CHECK if same mask !!!
     case (44):
     {
-        uint8_t x,y,sprite_byte,frame_byte,Xor_output,num_pixels_to_draw;
+        uint8_t x,y,frame_byte,Xor_output;
+        uint16_t sprite_bytes ;
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
         uint8_t registerYId = getRegisterYnumber(Opcode) ;
         uint16_t start_address = cpu.I;
-        x = cpu.V[registerXId] % 128;
-        y = cpu.V[registerYId] % 64;
+        x = cpu.V[registerXId] ;
+        y = cpu.V[registerYId] ;
         cpu.V[F]= 0 ;
-        uint8_t* sprite = &(cpu.memory[start_address]);
-        if (Resolution == HIRES)
+        uint8_t sprite_width = 16 ;
+        uint8_t Resolution_mask = 0x1 & ~Resolution ;
+        uint8_t pixel_size = 1 + Resolution ;
+        #if defined(SCHIP)
+        if (Resolution == LORES)
         {
-            for (int row=0 ; row < 16 ; row++) 
-            {
-
-                ;
-
-            }
+            sprite_width = 8 ;
         }
+        #endif
+        uint8_t* sprite = &(cpu.memory[start_address]);
+        for (int current_plane = 0 ; current_plane < NUM_PLANES ; current_plane ++)
+        {
+            if (planes[current_plane] == 1)
+            {    
+                for (int row =0 ; row < 16 ; row++)
+                {
+                    #if defined(XOCHIP)
+                    uint8_t yPos = (y % (32 * (1 + Resolution_mask)) + row) % (32 * (1 + Resolution_mask)) ;
+                    #else
+                    uint8_t yPos = (y % (32 * (1 + Resolution_mask)) + row) ;
+                    if (yPos== 0x20 * (1 + Resolution_mask)){break;}
+                    #endif
+                    // In HIRES mode we fetch two bytes , in LORES we fetch 1 bytes
+                    sprite_bytes = Resolution == LORES ? sprite[row] : ((sprite[row*2] << 8 ) | sprite[row*2+1]) ;
+                    for (int col=0 ; col < 8 * (1 + Resolution_mask) ; col++)
+                    {
+                        #if defined(XOCHIP)
+                        uint8_t xPos = ( x % (64 * (1 + Resolution_mask)) + col) % (64 * (1 + Resolution_mask)) ;
+                        #else
+                        uint8_t xPos = ( x % (64 * (1 + Resolution_mask)) + col) ;
+                        if (xPos == 0x40*(1 + Resolution_mask)) {break;}
+                        #endif
+                        uint8_t frame_pixel_value  = frame_buffer[current_plane][xPos*pixel_size][yPos*pixel_size] ;
+                        uint8_t sprite_pixel_value = ((sprite_bytes & (0x01 << (sprite_width-1-col))) >> (sprite_width-1-col)) ;
+                        Xor_output = frame_pixel_value ^ sprite_pixel_value ;
+                        
+                        for (int i = 0 ; i < 2 ; i++)
+                        {
+                            for (int j = 0 ; j < 2 ; j++)
+                            {
+                                frame_buffer[current_plane][(xPos * pixel_size) + (i*Resolution)][(yPos * pixel_size) + (j*Resolution)] = Xor_output ;
+                            }
+                        }
+                        // In case 1 Xor 1 we need to set V[F]
+                        if ((Xor_output == 0 & frame_pixel_value == 1 )) 
+                        {
+                            cpu.V[F]= 1 ;
+                        }
+
+                    }
+                }
+            }
+        sprite += 16 * (1 + Resolution_mask) ;
+        }
+
         break;
     }
-    */
     //Dxyn - DRW Vx, Vy, nibble  [TO DO]
     case (45):
     {
@@ -695,6 +757,13 @@ uint8_t executeOpcode(uint16_t Opcode)
         uint8_t* sprite = &(cpu.memory[start_address]);
         wait_state = 1 ;
         uint8_t Resolution_mask = 0x1 & ~Resolution ;
+        /*
+        printf("Opcode =%x\n",Opcode);
+        printf("x =%x\n",x);
+        printf("y =%x\n",y);
+        printf("Resolution =%x\n",Resolution);
+        fflush(stdout);
+        */
         /*If LOW_RES , pixel will be stretched
         HIRES = 0 / LORES = 1 
         If in LORES mode , each "pixel" will be represented as 2x2 pixel .
@@ -712,32 +781,33 @@ uint8_t executeOpcode(uint16_t Opcode)
                     yPos and xPos will depend on the Resolution (HIRES/LORES) variable .
                     */
     
-                    #if  (defined(XOCHIP) || defined(SCHIP))
+                    #if  (defined(XOCHIP))
                     uint8_t yPos = (y % (32 * (1 + Resolution_mask)) + row) % (32 * (1 + Resolution_mask)) ;
                     //uint8_t yPos = (y % 64 + row) % 64 ;
                     #else 
-                    uint8_t yPos = (y % 32 + row) ;
-                    #endif
-                    #if defined(CHIP8)
-                    if (yPos== 0x20){break;}
+                    uint8_t yPos = (y % (32 * (1 + Resolution_mask)) + row) ;
+                    if (yPos== 0x20 * (1 + Resolution_mask)){break;}
                     #endif
                     sprite_byte = sprite[row];
-                    if (Resolution == LORES) 
-                    {
-                        num_pixels_to_draw = (64 - x >= 8) ? 8 : 64 - x ;
-                    }
-                    else 
+                    /*
+                    if (Resolution == HIRES) 
                     {
                         num_pixels_to_draw = (128 - x >= 8) ? 8 : 128 - x ;
                     }
-                    for (int col=0 ; col < num_pixels_to_draw ; col++)
+                    else 
+                    {
+                        num_pixels_to_draw = (64 - x >= 8) ? 8 : 64 - x ;
+                    }
+                    */
+                    for (int col=0 ; col < 8 ; col++)
                     {
                         
                         // For XO-CHIP / SCHIP wrap instead of clipping
-                        #if  (defined(XOCHIP) || defined (SCHIP)) 
+                        #if  defined(XOCHIP)
                         uint8_t xPos = ( x % (64 * (1 + Resolution_mask)) + col) % (64 * (1 + Resolution_mask)) ;
                         #else
-                        uint8_t xPos = ( x % 64 + col );
+                        uint8_t xPos = ( x % (64 * (1 + Resolution_mask)) + col);
+                        if (xPos == 0x40*(1 + Resolution_mask)) {break;}
                         #endif
                         uint8_t frame_pixel_value  = frame_buffer[current_plane][xPos*pixel_size][yPos*pixel_size] ;
                         /*
@@ -771,11 +841,16 @@ uint8_t executeOpcode(uint16_t Opcode)
         }
         break;
     }
+    #if defined(XOCHIP)
     //F000	i := long NNNN
     case (46):
     {
+        cpu.I = (cpu.memory[cpu.pc + 2] << 8 | cpu.memory[cpu.pc + 3]) ;
+        cpu.pc +=2 ;
         break;
     }
+    #endif
+    #if defined(XOCHIP)
     //Fx01 - plane X
     case (47):
     {
@@ -786,13 +861,15 @@ uint8_t executeOpcode(uint16_t Opcode)
             planes[i] = (active_planes >> i ) & 0x01 ; 
         }
         break;
-
     }
+    #endif
+    #if defined(XOCHIP)
     //F002 - audio
     case (48):
     {
         break ;
     }
+    #endif
     //Fx30 - Point I to 10-byte font sprite
     case (49):
     {
@@ -826,7 +903,7 @@ uint8_t executeOpcode(uint16_t Opcode)
     }
     #endif
     default:
-        printf("Unsupported Opcode : %x",Opcode);
+        printf("Unsupported Opcode : %x\n",Opcode);
         return 0 ;
         break;
     }
