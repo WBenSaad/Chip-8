@@ -123,6 +123,7 @@ void Opcodetable_init()
   jp.mask[49]= 0xF0FF; jp.id[49]=0xF030;          /* Fx30 */ 
   jp.mask[50]= 0xF0FF; jp.id[50]=0xF03A;          /* Fx3A */ 
   jp.mask[51]= 0xF0FF; jp.id[51]=0xF075;          /* Fx75 */  
+  jp.mask[52]= 0xF08F; jp.id[52]=0x5004;          /* Fx75 */  
 }
 
 uint8_t getOpcodenum(uint16_t Opcode)
@@ -136,10 +137,21 @@ uint8_t getOpcodenum(uint16_t Opcode)
     }
     return 255 ;
 }
+uint16_t previous_opcode ;
+
 uint8_t executeOpcode(uint16_t Opcode)
 {
-
+    
+    //This will store the Next opcode to be executed
+    /*on platforms that have 4 byte opcodes, like F000 on XO-CHIP, The instructions
+     that skip Opcodes will have to skip 4 bytes instead of 2 if one of the 4 byte opcodes
+     is detected .
+     Next_opcode will be used to fetch the next opcode and verify if it is a 4 bytes or 2 bytes */
+    uint16_t Next_opcode = cpu.memory[cpu.pc+2] << 8 | cpu.memory[cpu.pc+3];
+    uint8_t Next_Action = getOpcodenum(Next_opcode);
+    
     uint8_t action = getOpcodenum(Opcode);
+    
     switch (action)
     {
     //0nnn - SYS addr
@@ -184,12 +196,12 @@ uint8_t executeOpcode(uint16_t Opcode)
         cpu.pc = 0x0FFF & Opcode ;
         cpu.pc -=2 ;
         break;
-    //3xkk - SE Vx, byte
+    //3xnn - SE Vx, byte
     case (5):
         registerXId = getRegisterXnumber(Opcode) ;
         if (cpu.V[registerXId] == (0x00FF & Opcode))
         {
-            cpu.pc += 2 ;
+            cpu.pc = Next_Action == 46 ? cpu.pc + 4 : cpu.pc + 2 ;
         }
         break;
     //4xkk - SNE Vx, byte
@@ -197,7 +209,7 @@ uint8_t executeOpcode(uint16_t Opcode)
         registerXId = getRegisterXnumber(Opcode) ;
         if (cpu.V[registerXId] != (0x00FF & Opcode))
         {
-            cpu.pc += 2 ;
+            cpu.pc = Next_Action == 46 ? cpu.pc + 4 : cpu.pc + 2 ;
         }
         break;
     //5xy0 - SE Vx, Vy
@@ -206,7 +218,7 @@ uint8_t executeOpcode(uint16_t Opcode)
         registerYId = getRegisterYnumber(Opcode) ;
         if (cpu.V[registerXId] == cpu.V[registerYId])
         {
-            cpu.pc += 2 ;
+            cpu.pc = Next_Action == 46 ? cpu.pc + 4 : cpu.pc + 2 ;
         }
         break;
     //6xkk - LD Vx, byte
@@ -268,7 +280,7 @@ uint8_t executeOpcode(uint16_t Opcode)
     {
         registerXId = getRegisterXnumber(Opcode) ;
         registerYId = getRegisterYnumber(Opcode) ;
-        int8_t temp = cpu.V[registerXId] - cpu.V[registerYId] ;
+        int temp = cpu.V[registerXId] - cpu.V[registerYId] ;
         cpu.V[registerXId] =  temp ;
         cpu.V[F] = (temp < 0) ? 0 : 1 ;     
         break;
@@ -281,7 +293,7 @@ uint8_t executeOpcode(uint16_t Opcode)
         #ifndef SCHIP
         cpu.V[registerXId] = cpu.V[registerYId];
         #endif
-        uint8_t VF_temp = (cpu.V[registerXId] & (uint8_t) 0x1) ? 1 : 0 ;
+        uint8_t VF_temp = cpu.V[registerXId] & (uint8_t) 0x1 ;
         cpu.V[registerXId] >>=  1 ;
         cpu.V[F] = VF_temp ;
         break;
@@ -291,7 +303,7 @@ uint8_t executeOpcode(uint16_t Opcode)
     {
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
         uint8_t registerYId = getRegisterYnumber(Opcode) ;
-        int8_t temp = cpu.V[registerYId] - cpu.V[registerXId] ;
+        int temp = cpu.V[registerYId] - cpu.V[registerXId] ;
         cpu.V[registerXId] =  temp ;
         cpu.V[F] = (temp < 0) ? 0 : 1 ;   
         break;
@@ -304,7 +316,7 @@ uint8_t executeOpcode(uint16_t Opcode)
         #ifndef SCHIP
         cpu.V[registerXId] = cpu.V[registerYId];
         #endif
-        uint8_t VF_temp = (cpu.V[registerXId] >> 7) ? 1 : 0 ;
+        uint8_t VF_temp = (cpu.V[registerXId] >> 7 & 0x1) ;
         cpu.V[registerXId] <<= 1 ;
         cpu.V[F] = VF_temp ;
         break;
@@ -315,7 +327,7 @@ uint8_t executeOpcode(uint16_t Opcode)
         registerYId = getRegisterYnumber(Opcode) ;
         if (cpu.V[registerXId] != cpu.V[registerYId])
         {
-            cpu.pc +=2 ;
+            cpu.pc = Next_Action == 46 ? cpu.pc + 4 : cpu.pc + 2 ;
         }
         break;
     //Annn - LD I, addr
@@ -337,9 +349,9 @@ uint8_t executeOpcode(uint16_t Opcode)
     //Cxkk - RND Vx, byte [TO DO]
     case (22):
     {
-        uint8_t rand = 10 ; // This needs to be implemented ;
+        int random = rand() ; 
         uint8_t registerXId = getRegisterXnumber(Opcode) ;
-        cpu.V[registerXId] = (Opcode & 0x00FF) & rand ;
+        cpu.V[registerXId] = (Opcode & 0x00FF) & random ;
         break;
     }
     //Fx85 - Read V0..VX from RPL user flags    Read V0..VX from RPL user flags
@@ -368,7 +380,7 @@ uint8_t executeOpcode(uint16_t Opcode)
         uint8_t key_index  = cpu.V[registerXId] % 16;
         if (Keyboard[key_index].Key_current_state == KEY_PRESSED )
         {
-            cpu.pc +=2 ;
+            cpu.pc = Next_Action == 46 ? cpu.pc + 4 : cpu.pc + 2 ;
         }
         break;   
     }
@@ -380,7 +392,7 @@ uint8_t executeOpcode(uint16_t Opcode)
         uint8_t key_index = cpu.V[registerXId] % 16;
         if ((Keyboard[key_index].Key_current_state == KEY_NOT_PRESSED)) 
         {
-            cpu.pc +=2 ;
+            cpu.pc = Next_Action == 46 ? cpu.pc + 4 : cpu.pc + 2 ;
         }
         break;  
     }
@@ -425,7 +437,7 @@ uint8_t executeOpcode(uint16_t Opcode)
     {
         registerXId = getRegisterXnumber(Opcode) ;
         cpu.I +=cpu.V[registerXId] ;
-        cpu.I &= 0x0FFF;  
+        //cpu.I &= 0x0FFF;  
         break;
     }
     //Fx29 - LD F, Vx  TO BE IMPLEMENTED
@@ -453,9 +465,9 @@ uint8_t executeOpcode(uint16_t Opcode)
             tens++ ;
         }
         units = temp ;
-        cpu.memory[ address      & 0x0FFF] = hundreds ;
-        cpu.memory[(address + 1) & 0x0FFF] = tens ;
-        cpu.memory[(address + 2) & 0x0FFF] = units;
+        cpu.memory[ address      & 0xFFFF] = hundreds ;
+        cpu.memory[(address + 1) & 0xFFFF] = tens ;
+        cpu.memory[(address + 2) & 0xFFFF] = units;
         break;
     }
     //Fx55 - LD [I], Vx
@@ -465,7 +477,7 @@ uint8_t executeOpcode(uint16_t Opcode)
         uint16_t address = cpu.I;
         for (int i = 0 ; i <= registerXId ; i++  )
         {
-            cpu.memory[(address + i) & 0x0FFF] = cpu.V[i] ;
+            cpu.memory[(address + i)] = cpu.V[i] ;
         }
         #if !defined(SCHIP)
         cpu.I += (registerXId + 1) ;
@@ -479,7 +491,7 @@ uint8_t executeOpcode(uint16_t Opcode)
         uint16_t address = cpu.I;
         for (int i = 0 ; i <= registerXId ; i++  )
         {
-            cpu.V[i] = cpu.memory[(address + i) & 0x0FFF] ;
+            cpu.V[i] = cpu.memory[(address + i)] ;
         }
         #if !defined(SCHIP)
         cpu.I += (registerXId + 1) ;
@@ -624,26 +636,27 @@ uint8_t executeOpcode(uint16_t Opcode)
         break;
     }
     #endif
-    // Test These and F000 with ROM "An Evening To Die For"
     //5xy2 - save vX - vY
     #if defined(XOCHIP)
     case (42):
     {
+
         registerXId = getRegisterXnumber(Opcode) ;
         registerYId = getRegisterYnumber(Opcode) ;
-        uint16_t address = cpu.I & 0x0FFF ;
-        if (registerXId > registerYId) 
+        uint16_t address = cpu.I;
+        if (registerYId >= registerXId) 
         {
-            for (int i = registerXId ; i > registerYId ; i--)
+            for (int i = 0 ; i <= (registerYId - registerXId) ; i++)
             {
-                cpu.memory[address + i] = cpu.V[i];
+                cpu.memory[address + i] = cpu.V[registerXId + i];
             }
         }
+        
         else 
         {
-            for (int i = registerXId ; i <= registerYId ; i++ )
+            for (int i = 0 ; i <= (registerXId - registerYId) ; i++)
             {
-                cpu.memory[address + i] = cpu.V[i];
+                cpu.memory[address + i] = cpu.V[registerXId - i];
             }
         }
         break;
@@ -655,19 +668,19 @@ uint8_t executeOpcode(uint16_t Opcode)
     {
         registerXId = getRegisterXnumber(Opcode) ;
         registerYId = getRegisterYnumber(Opcode) ;
-        uint16_t address = cpu.I & 0x0FFF ;
-        if (registerXId > registerYId) 
+        uint16_t address = cpu.I ;
+        if (registerYId >= registerXId) 
         {
-            for (int i = registerXId ; i > registerYId ; i--)
+            for (int i = 0 ; i <= (registerYId - registerXId) ; i++)
             {
-                cpu.V[i] = cpu.memory[address + i] ;
+                cpu.V[registerXId + i] = cpu.memory[address + i] ;
             }
         }
         else 
         {
-            for (int i = registerXId ; i <= registerYId ; i++ )
+            for (int i = 0 ; i <= registerXId - registerYId ; i++)
             {
-                cpu.V[i] = cpu.memory[address + i] ;
+                cpu.V[registerXId - i] = cpu.memory[address + i] ;
             }
         }
         break;
@@ -736,8 +749,8 @@ uint8_t executeOpcode(uint16_t Opcode)
 
                     }
                 }
+            sprite += 16 * (1 + Resolution_mask) ;
             }
-        sprite += 16 * (1 + Resolution_mask) ;
         }
 
         break;
@@ -757,20 +770,13 @@ uint8_t executeOpcode(uint16_t Opcode)
         uint8_t* sprite = &(cpu.memory[start_address]);
         wait_state = 1 ;
         uint8_t Resolution_mask = 0x1 & ~Resolution ;
-        /*
-        printf("Opcode =%x\n",Opcode);
-        printf("x =%x\n",x);
-        printf("y =%x\n",y);
-        printf("Resolution =%x\n",Resolution);
-        fflush(stdout);
-        */
         /*If LOW_RES , pixel will be stretched
         HIRES = 0 / LORES = 1 
         If in LORES mode , each "pixel" will be represented as 2x2 pixel .
         => In LORES mode , pixel_size = 2 while in HIRES mode , pixel_size = 1 ;
         */
         uint8_t pixel_size = 1 + Resolution ;
-        for (int current_plane = 0 ; current_plane < NUM_PLANES ; current_plane ++)
+        for (int current_plane = 0 ; current_plane < NUM_PLANES ; current_plane++)
         {
             if (planes[current_plane] == 1)
             {    
@@ -783,22 +789,11 @@ uint8_t executeOpcode(uint16_t Opcode)
     
                     #if  (defined(XOCHIP))
                     uint8_t yPos = (y % (32 * (1 + Resolution_mask)) + row) % (32 * (1 + Resolution_mask)) ;
-                    //uint8_t yPos = (y % 64 + row) % 64 ;
                     #else 
                     uint8_t yPos = (y % (32 * (1 + Resolution_mask)) + row) ;
                     if (yPos== 0x20 * (1 + Resolution_mask)){break;}
                     #endif
                     sprite_byte = sprite[row];
-                    /*
-                    if (Resolution == HIRES) 
-                    {
-                        num_pixels_to_draw = (128 - x >= 8) ? 8 : 128 - x ;
-                    }
-                    else 
-                    {
-                        num_pixels_to_draw = (64 - x >= 8) ? 8 : 64 - x ;
-                    }
-                    */
                     for (int col=0 ; col < 8 ; col++)
                     {
                         
@@ -858,7 +853,8 @@ uint8_t executeOpcode(uint16_t Opcode)
         int i = 0 ;
         while (i < 4)
         {
-            planes[i] = (active_planes >> i ) & 0x01 ; 
+            planes[i] = (active_planes >> i ) & 0x01 ;
+            i++; 
         }
         break;
     }
@@ -902,8 +898,13 @@ uint8_t executeOpcode(uint16_t Opcode)
         break;
     }
     #endif
+    case (52):
+    {
+        break;
+    }
     default:
         printf("Unsupported Opcode : %x\n",Opcode);
+        printf("cpu.pc : %x\n",cpu.pc);
         return 0 ;
         break;
     }

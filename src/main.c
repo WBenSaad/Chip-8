@@ -1,9 +1,8 @@
 #include <main.h>
 
-
 #define FPS 16 
 #define CPUSPEED 4 
-#define INSTRUCTIONS_PER_REFRESH_CYCLE  50
+#define INSTRUCTIONS_PER_REFRESH_CYCLE  1000
 
 void poll_inputs()
 {
@@ -22,7 +21,7 @@ void poll_inputs()
 uint8_t load_rom(char* rom_name){
 
     FILE *rom = NULL ;
-    rom = fopen("8-scrolling.ch8","rb");
+    rom = fopen("redOctober.ch8","rb");
     if (rom != NULL)
     {
         fread(&cpu.memory[START_ADDRESS],sizeof(uint8_t)*(MEMORY_MAX - START_ADDRESS),1,rom);
@@ -32,6 +31,7 @@ uint8_t load_rom(char* rom_name){
     }
     else
     {
+        printf("Error opening rom file\n");
         return 0 ;
     }
 }
@@ -39,8 +39,6 @@ void Quit()
 {
 
     SDL_RemoveTimer(timer_id);
-    SDL_FreeSurface(carre[0]);
-    SDL_FreeSurface(carre[1]);
     SDL_CloseAudioDevice(dev);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -95,5 +93,4 @@ int main(int argc, char* argv[]) {
         (cpu.sound_timer > 0) ? audio_play() : audio_pause() ;
     }
     Quit();
-    //return 0 ;
 }

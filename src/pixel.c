@@ -1,5 +1,8 @@
 #include "pixel.h"
 
+uint32_t pixel_buffer[FRAME_WIDTH * FRAME_HEIGHT];
+uint8_t planes[NUM_PLANES] = {0};
+
 void plane_clear(int plane)
 {
     for (int i = 0 ; i < FRAME_WIDTH ;i++)
@@ -21,12 +24,12 @@ void framebuffer_init()
 
 int video_init() 
 { 
-    /*By Default frame buffer should be 64x32 */
+    /* By Default frame buffer should be 64x32 */
     Resolution = LORES ;
+
+    /* By Default only plane 1 is active */
     planes[0] = 1 ;
-    planes[1] = 0 ;
-    planes[2] = 0 ;
-    planes[3] = 0 ;
+
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -53,43 +56,61 @@ int video_init()
         SDL_Quit();
         return 1;
     }
-    // Surface initialization
-    SDL_Surface* whiteSurface = SDL_CreateRGBSurface(0, 8, 8, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-    SDL_Surface* blackSurface = SDL_CreateRGBSurface(0, 8, 8, 32, 0x00, 0x00, 0x00, 0x00);
-    if (whiteSurface == NULL || blackSurface == NULL)
-    {
-        printf("Surfaces couldn't be created !SDL_Error: %s\n", SDL_GetError());
-        SDL_Quit();
-    } 
-    SDL_FillRect(whiteSurface, NULL, SDL_MapRGB(whiteSurface->format, 0xFF, 0xFF, 0xFF));  // White pixel
-    SDL_FillRect(blackSurface, NULL, SDL_MapRGB(blackSurface->format, 0x00, 0x00, 0x00));  // Black pixel
+    ScreenTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888 , SDL_TEXTUREACCESS_STREAMING, 128, 64);
 
-    WhiteTexture = SDL_CreateTextureFromSurface(renderer, whiteSurface);
-    BlackTexture = SDL_CreateTextureFromSurface(renderer, blackSurface);
-    if (WhiteTexture == NULL || BlackTexture == NULL)
+    // Create texture for pixel rendering
+    SDL_Surface* surface = SDL_CreateRGBSurface(0, 8, 8, 32, 0, 0, 0, 0);
+    if (surface == NULL) 
     {
-        printf("Textures couldn't be created !SDL_Error: %s\n", SDL_GetError());
-        SDL_Quit();
-    } 
-    SDL_FreeSurface(whiteSurface);
-    SDL_FreeSurface(blackSurface);
+        printf("Unable to create surface! SDL Error: %s\n", SDL_GetError());
+        return 1;
+    }
+
+    SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 255, 255, 255));
+
+    
+    PixelTexture = SDL_CreateTextureFromSurface(renderer, surface);
+    if (PixelTexture == NULL) 
+    {
+        printf("Unable to create texture! SDL Error: %s\n", SDL_GetError());
+        return 1;
+    }
+
+    SDL_FreeSurface(surface);    
+}
+
+void DrawPixel(uint8_t x , uint8_t y, uint8_t color_index) 
+{
+    /*
+    uint32_t* pixels;
+    int pitch;
+    SDL_LockTexture(ScreenTexture, NULL, (void**)&pixels, &pitch);
+
+    unsigned int color = Palette[color_index];
+    pixels[y * FRAME_WIDTH + x] = color;
+    SDL_UnlockTexture(ScreenTexture);
+    */
+    pixel_buffer[y * FRAME_WIDTH + x] = Palette[color_index];
+
     
 }
-void DrawPixel(uint8_t x , uint8_t y, uint8_t color) {
-    
+    /*
     SDL_Rect pixel;
     pixel.x = x*8;
     pixel.y = y*8;
     pixel.w = 8;
     pixel.h = 8;
-    if (color == WHITE){
-    SDL_RenderCopy(renderer,WhiteTexture,NULL,&pixel);
-    }
-    else if (color == BLACK)
-    {
-    SDL_RenderCopy(renderer,BlackTexture,NULL,&pixel);
-    }
-}
+    
+    unsigned int color = Palette[color_index];
+    uint8_t r = (color >> 16) & 0xFF; // Extract Red
+    uint8_t g = (color >> 8) & 0xFF;  // Extract Green
+    uint8_t b = color & 0xFF;         // Extract Blue
+    
+
+    SDL_SetTextureColorMod(PixelTexture, r, g, b);
+    SDL_RenderCopy(renderer,PixelTexture, NULL, &pixel);
+    
+}*/
 
 void clear_screen()
 {
@@ -98,13 +119,24 @@ void clear_screen()
 
 void update_screen()
 {
-
-     for (int i =0 ; i < FRAME_WIDTH ;i++)
-     {
+    uint8_t color = 0;
+    for (int i =0 ; i < FRAME_WIDTH ;i++)
+    {
         for (int j=0 ; j < FRAME_HEIGHT ; j++)
         {
-            DrawPixel(i,j,frame_buffer[0][i][j]);
+            color = frame_buffer[3][i][j] << 3 | frame_buffer[2][i][j] << 2 | frame_buffer[1][i][j] << 1 | frame_buffer[0][i][j] ;
+            DrawPixel(i,j,color);
         }
-     }
-     SDL_RenderPresent(renderer); 
+    }
+    //SDL_RenderCopy(renderer, ScreenTexture, NULL, NULL);
+    SDL_UpdateTexture(ScreenTexture, NULL, pixel_buffer, FRAME_WIDTH * sizeof(uint32_t));
+    SDL_Rect dstRect;
+    dstRect.x = 0;
+    dstRect.y = 0;
+    dstRect.w = screen_width;
+    dstRect.h = screen_length;
+
+    // Render the scaled texture
+    SDL_RenderCopy(renderer, ScreenTexture, NULL, &dstRect);
+    SDL_RenderPresent(renderer); 
 }

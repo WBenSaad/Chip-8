@@ -32,10 +32,19 @@ uint8_t Resolution ;
 SDL_Surface *carre[2];
 SDL_Window* window;
 SDL_Renderer* renderer;
-SDL_Texture* BlackTexture ;
-SDL_Texture* WhiteTexture ;
+SDL_Texture* ScreenTexture ;
+SDL_Texture* PixelTexture ;
 SDL_Surface* whiteSurface ;
 SDL_Surface* blackSurface ;
+
+SDL_Texture* ColorTextures[16];
+
+static const unsigned int Palette[16] = {
+    0x1a1c2c, 0xf4f4f4, 0x94b0c2, 0x333c57, 
+    0xef7d57, 0xa7f070, 0x3b5dc9, 0xffcd75, 
+    0xb13e53, 0x38b764, 0x29366f, 0x566c86, 
+    0x41a6f6, 0x73eff7, 0x5d275d, 0x257179
+};
 
 /* XO-CHIP introduces the concept of Planes 
 => The Frame Buffer will be composed of 4 buffers of size l*L  
@@ -43,7 +52,8 @@ For SCHIP and CHIP8 only Plane 0 will be used */
 
 uint8_t frame_buffer[NUM_PLANES][FRAME_WIDTH][FRAME_HEIGHT]  ;
 
-uint8_t planes[NUM_PLANES];
+//By Default only Plane 0 is active
+extern uint8_t planes[NUM_PLANES];
 uint8_t active_planes ;
 
 uint8_t screen[screen_width][screen_length];

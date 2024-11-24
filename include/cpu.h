@@ -1,12 +1,13 @@
 #if !defined(CPU_H)
 #define CPU_H
 #include <stdint.h>
+#include <stdlib.h>
 #include <pixel.h>
 #include <keyboard.h>
 #include <main.h>
 
 
-#define MEMORY_MAX                  4096
+#define MEMORY_MAX                  65536
 #define START_ADDRESS               0x200
 #define NUMOPCODES                  53
 #define DEFAULT_SPRITE_ADDRESS      0x50
